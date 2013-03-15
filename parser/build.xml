@@ -1,0 +1,46 @@
+<?xml version="1.0"?>
+
+<project name="while-parser" basedir="." default="jar">
+
+	<property name="src" value="src" />
+	<property name="build" value="build" />
+	<property name="jar" value="${ant.project.name}.jar" />
+	
+	<path id="compile.classpath">
+		<fileset dir="../language">
+			<filename name="while-language.jar" />
+		</fileset>
+	</path>
+	
+	<target name="generate-parser" description="Generates parser">
+		<java failonerror="true" classname="javacc">
+			<classpath>
+				<fileset dir=".">
+					<filename name="lib/javacc.jar" />
+				</fileset>
+			</classpath>
+			
+			<arg line="-output_directory=src/com/infdot/analysis/parser" />
+			<arg line="src/com/infdot/analysis/parser/grammar.jj" />
+		</java>
+	</target>
+
+	<target name="compile" depends="generate-parser" description="Compiles the project">
+		<delete dir="${build}" />
+		<mkdir dir="${build}" />
+		
+		<copy todir="${build}">
+			<fileset dir="${src}" />
+		</copy>
+		
+		<javac destdir="${build}" debug="true" includeantruntime="false">
+			<src path="${src}" />
+			<classpath refid="compile.classpath" />
+		</javac>
+	</target>
+
+	<target name="jar" depends="compile" description="Packages the project in jar file">
+		<jar destfile="${jar}" basedir="${build}" />
+	</target>
+
+</project>

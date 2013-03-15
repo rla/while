@@ -1,0 +1,27 @@
+<?xml version="1.0"?>
+
+<project name="while-language" basedir="." default="jar">
+
+	<property name="src" value="src" />
+	<property name="lib" value="lib" />
+
+	<property name="build" value="build" />
+	<property name="jar" value="${ant.project.name}.jar" />
+
+	<target name="compile" description="Compiles the project">
+		<mkdir dir="${build}" />
+		
+		<copy todir="${build}">
+			<fileset dir="${src}" />
+		</copy>
+		
+		<javac destdir="${build}" debug="true" includeantruntime="false">
+			<src path="${src}" />
+		</javac>
+	</target>
+
+	<target name="jar" depends="compile" description="Packages the project in jar file">
+		<jar destfile="${jar}" basedir="${build}" />
+	</target>
+
+</project>

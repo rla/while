@@ -1,0 +1,63 @@
+<?xml version="1.0"?>
+
+<project name="while" basedir="." default="jar">
+
+	<property name="src" value="src" />
+
+	<property name="build" value="build" />
+	<property name="jar" value="${ant.project.name}.jar" />
+
+	<path id="compile.classpath">
+		<pathelement location="${src}" /> 
+		<pathelement location="language/while-language.jar" />
+		<pathelement location="parser/while-parser.jar" />
+	</path>
+
+	<target name="compile" description="Compiles the project">
+		<mkdir dir="${build}" />
+		
+		<copy todir="${build}">
+			<fileset dir="${src}" />
+		</copy>
+		
+		<javac destdir="${build}" debug="true" includeantruntime="false">
+			<src path="${src}" />
+			<classpath refid="compile.classpath" />
+		</javac>
+	</target>
+	
+	<target name="sign">
+        <java classname="com.infdot.analysis.examples.sign.SignExample">
+            <classpath>
+	            <pathelement location="language/while-language.jar" />
+                <pathelement location="parser/while-parser.jar" />
+                <pathelement location="while.jar" />
+	        </classpath>	        
+	    </java>
+	</target>
+	
+	<target name="iv">
+        <java classname="com.infdot.analysis.examples.iv.InitializedVariablesExample">
+            <classpath>
+                <pathelement location="language/while-language.jar" />
+                <pathelement location="parser/while-parser.jar" />
+                <pathelement location="while.jar" />
+            </classpath>            
+        </java>
+    </target>
+    
+	<target name="liveness">
+        <java classname="com.infdot.analysis.examples.liveness.Liveness">
+            <classpath>
+                <pathelement location="language/while-language.jar" />
+                <pathelement location="parser/while-parser.jar" />
+                <pathelement location="while.jar" />
+            </classpath>            
+        </java>
+    </target>
+
+	<target name="jar" depends="compile" description="Packages the project in jar file">
+		<jar destfile="${jar}" basedir="${build}" />
+	</target>
+
+</project>

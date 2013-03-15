@@ -1,0 +1,310 @@
+options {
+	STATIC = false;
+}
+
+PARSER_BEGIN(WhileLang)
+package com.infdot.analysis.parser;
+
+import com.infdot.analysis.language.expression.Expression;
+import com.infdot.analysis.language.expression.Constant;
+import com.infdot.analysis.language.expression.Identifier;
+import com.infdot.analysis.language.expression.Input;
+import com.infdot.analysis.language.expression.Div;
+import com.infdot.analysis.language.expression.Expression;
+import com.infdot.analysis.language.expression.Gt;
+import com.infdot.analysis.language.expression.Sub;
+
+import com.infdot.analysis.language.statement.Statement;
+import com.infdot.analysis.language.statement.If;
+import com.infdot.analysis.language.statement.While;
+import com.infdot.analysis.language.statement.Assignment;
+import com.infdot.analysis.language.statement.Declaration;
+import com.infdot.analysis.language.statement.Compound;
+import com.infdot.analysis.language.statement.Output;
+
+import java.util.List;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.io.InputStream;
+import java.io.StringReader;
+
+@SuppressWarnings("unused")
+public class WhileLang {
+	public static Statement parse(String code) throws ParseException {
+		return new WhileLang(new StringReader(code)).program();
+	}
+	
+	public static Statement parse(InputStream input) throws ParseException {
+		return new WhileLang(input).program();
+	}
+	
+	public static Statement makeStatement(List<Statement> statements) {
+		Statement statement = statements.get(0);
+		for (Statement next : statements.subList(1, statements.size())) {
+			statement = new Compound(statement, next);
+		}
+		
+		return statement;
+	}
+
+	public static Expression makeBinaryOperator(String symbol,
+			List<Expression> expressions, boolean isLeftAssociative) {
+		expressions = new ArrayList<Expression>(expressions);
+		if (isLeftAssociative) {
+			Collections.reverse(expressions);
+		}
+
+		return makeBinaryOperator1(symbol, expressions, isLeftAssociative);
+	}
+
+	private static Expression makeBinaryOperator1(String symbol,
+			List<Expression> expressions, boolean isLeftAssociative) {
+		if (expressions.size() == 1) {
+			return expressions.get(0);
+		}
+		Expression left = expressions.get(0);
+		expressions.remove(0);
+		Expression right = makeBinaryOperator1(symbol, expressions,
+				isLeftAssociative);
+
+		if (isLeftAssociative) {
+			return makeBinaryOperator(symbol, right, left);
+		} else {
+			return makeBinaryOperator(symbol, left, right);
+		}
+	}
+	
+	private static Expression makeBinaryOperator(String op, Expression e1, Expression e2) {
+		if ("/".equals(op)) {
+			return new Div(e1, e2);
+		} else if ("-".equals(op)) {
+			return new Sub(e1, e2);
+		} else if (">".equals(op)) {
+			return new Gt(e1, e2);
+		} else {
+			throw new IllegalArgumentException("Unknown operator: " + op);
+		}
+	}
+}
+
+PARSER_END(WhileLang)
+
+SKIP : /* WHITE SPACE */
+{
+  " "
+| "\t"
+| "\n"
+| "\r"
+}
+
+TOKEN : /* RESERVED WORDS AND LITERALS */
+{
+  < INPUT: "input" >
+| < OUTPUT: "output" >
+| < WHILE: "while" >
+| < IF: "if" >
+| < ELSE: "else" >
+| < VAR: "var" >
+}
+
+TOKEN : /* LITERALS */
+{
+  < INTEGER_LITERAL: "0" | ["1"-"9"] (["0"-"9"])* >
+}
+
+TOKEN : /* IDENTIFIERS */
+{
+  < IDENTIFIER: <LETTER> (<LETTER>|<DIGIT>)* >
+| < #LETTER: [ "a"-"z", "A"-"Z" ] >
+| < #DIGIT: [ "0"-"9" ] >
+}
+
+TOKEN : /* SEPARATORS */
+{
+  < LPAREN: "(" >
+| < RPAREN: ")" >
+| < SEMICOLON: ";" >
+| < COMMA: "," >
+}
+
+TOKEN : /* OPERATORS */
+{
+  < ASSIGN: "=" >
+| < GT: ">" >
+| < PLUS: "+" >
+| < MINUS: "-" >
+| < STAR: "*" >
+| < SLASH: "/" >
+}
+
+Statement program() :
+{
+	Statement t;
+}
+{
+	t = statements() <EOF>
+	{
+		return t;
+	}
+}
+
+Statement statements() :
+{
+	Statement t;
+	List<Statement> list = new ArrayList<Statement>();
+}
+{
+	t = statement() { list.add(t); }
+	( t = statement() { list.add(t); } )*
+	{
+		return makeStatement(list);
+	}
+}
+
+Statement statement() :
+{
+	Statement t;
+}
+{
+	(
+		t = declaration()
+		| t = assignment()
+		| t = ifs()
+		| t = whiles()
+		| t = block()
+		| t = output()
+	)
+	{
+		return t;
+	}
+}
+
+Statement declaration() :
+{
+	Token t;
+	List<Identifier> ids = new ArrayList<Identifier>();
+}
+{
+	"var" t = <IDENTIFIER> { ids.add(new Identifier(t.image)); }
+	( "," t = <IDENTIFIER> { ids.add(new Identifier(t.image)); })* ";"
+	{
+		return new Declaration(ids);		
+	}
+}
+
+Statement assignment() :
+{
+	Token t;
+	Expression e;
+}
+{
+	t = <IDENTIFIER> "=" e = expression() ";"
+	{
+		return new Assignment(new Identifier(t.image), e);
+	}
+}
+
+Expression expression() :
+{
+	Expression e;
+	List<Expression> list = new ArrayList<Expression>();
+}
+{
+	e = additive() { list.add(e); }
+	( ">" e = additive() { list.add(e); } )*
+	{
+		return makeBinaryOperator(">", list, true);
+	}
+}
+
+Expression additive() :
+{
+	Expression e;
+	List<Expression> list = new ArrayList<Expression>();
+}
+{
+	e = multiplicative() { list.add(e); }
+	( "-" e = multiplicative() { list.add(e); } )*
+	{
+		return makeBinaryOperator("-", list, true);
+	}
+}
+
+Expression multiplicative() :
+{
+	Expression e;
+	List<Expression> list = new ArrayList<Expression>();
+}
+{
+	e = unary() { list.add(e); }
+	( "/" e = unary() { list.add(e); } )*
+	{
+		return makeBinaryOperator("/", list, true);
+	}
+}
+
+Expression unary() :
+{
+	Token t;
+	Expression e;
+}
+{
+	t = <INTEGER_LITERAL> { return new Constant(Integer.parseInt(t.image)); }
+	| t = <IDENTIFIER> { return new Identifier(t.image); }
+	| e = input() { return e; }
+}
+
+Expression input() :
+{}
+{
+	"input"
+	{
+		return new Input();
+	}
+}
+
+Statement ifs() :
+{
+	Expression c;
+	Statement s;
+}
+{
+	"if" "(" c = expression() ")" s = statement()
+	{
+		return new If(c, s);
+	}
+}
+
+Statement whiles() :
+{
+	Expression c;
+	Statement s;
+}
+{
+	"while" "(" c = expression() ")" s = statement()
+	{
+		return new While(c, s);
+	}
+}
+
+Statement block() :
+{
+	Statement s;
+}
+{
+	"{" s = statements() "}"
+	{
+		return s;
+	}
+}
+
+Statement output() :
+{
+	Token t;
+}
+{
+	"output" t = <IDENTIFIER> ";"
+	{
+		return new Output(t.image);
+	}
+}
